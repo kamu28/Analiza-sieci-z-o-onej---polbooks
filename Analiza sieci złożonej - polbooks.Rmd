@@ -1,0 +1,270 @@
+---
+title: "Analiza sieci złożonej polbooks"
+author: "Kamil Chmielak"
+date: "2023-01-14"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(igraph)
+library(tidyverse)
+library(ggplot2)
+library(flextable)
+library(kableExtra)
+```
+
+```{r}
+graf_books <- read_graph("polbooks.GML" ,format = "GML")
+wierzcholki <- length(V(graf_books))
+krawedzie <- length(E(graf_books))
+krawedzie
+```
+
+#wizualizacja grafu w RStudio
+
+```{r}
+plot(graf_books)
+```
+
+##Spójność
+
+```{r}
+spojnosc_grafu <- is.connected(graf_books)
+spojnosc_grafu
+```
+
+##Składowe
+
+```{r}
+comp <- components(graf_books)
+comp
+```
+
+#liczba spójnych składowych
+
+```{r}
+liczba_spojnych_skladowych <- comp$no
+```
+
+#rozmiar składowych
+
+```{r}
+rozmiary_skladowych <- comp$csize
+rozmiary_skladowych
+```
+
+#rozkład wielkości składowych
+
+```{r}
+cd<-component_distribution(graf_books)*wierzcholki
+cd
+```
+
+```{r}
+plot(1:max(comp$csize),cd[2:length(cd)])
+```
+
+#????
+
+```{r}
+plot(hist(comp$csize))
+```
+
+## średnica grafu
+
+```{r}
+d <- diameter(graf_books, directed = FALSE, unconnected = !spojnosc_grafu)
+d
+```
+
+## średnia długość ścieżki
+
+```{r}
+path <- average.path.length(graf_books, directed=FALSE, unconnected=!spojnosc_grafu)
+path
+```
+
+## średni stopień grafu
+
+```{r}
+sredni_stopien <- mean(degree(graf_books))
+sredni_stopien
+```
+
+##Stopnie wierzchołków grafu
+
+```{r}
+stopnie_wierzcholkow <- degree(graf_books)
+stopnie_wierzcholkow
+```
+
+##minimalny i maksymalny stopien grafu
+
+```{r}
+max_stopien <- max(stopnie_wierzcholkow)
+min_stopien <- min(stopnie_wierzcholkow)
+```
+
+##histogram rozkładu stopni
+
+```{r}
+hist(degree(graf_books))
+```
+
+##rozkład stopni wierzcholków
+
+```{r}
+dd <- degree.distribution(graf_books)
+dd
+```
+
+```{r}
+plot(0:max(degree(graf_books)),dd*wierzcholki,xlim=c(0,max(degree(graf_books)+1)))
+```
+
+##miara centralnosci wierzcholkow- wskazuja ktore wierzcholki w sieci sa wazniejsze niz inne ze wzgledu na rozne kryteria
+
+```{r}
+central_stopien <- degree(graf_books)
+central_stopien
+```
+
+```{r}
+stopien_wazony <- strength(graf_books)
+stopien_wazony
+```
+
+```{r}
+posrednictwo <- betweenness(graf_books)
+posrednictwo
+```
+
+```{r}
+bliskosc <- closeness(graf_books)
+bliskosc
+```
+
+```{r}
+ekscentrycznosc <- eccentricity(graf_books)
+ekscentrycznosc
+```
+
+##tabelka z miarami centralnosci
+
+```{r}
+Miary_centralnosci <- data.frame(stopnie_wierzcholkow,posrednictwo,bliskosc,ekscentrycznosc)
+```
+
+```{r}
+Miary_centralnosci %>% 
+  kbl(format = "html", escape = F) %>%
+kable_styling(bootstrap_options = "striped", font_size = 15)
+```
+
+##wykres elscentrycznosci
+
+```{r}
+Miary_centralnosci %>% 
+ggplot(aes(x=ekscentrycznosc))+
+  geom_histogram(color="white",bins = 4)
+```
+
+##Analiza klastrowa
+
+```{r}
+m <- cluster_louvain(graf_books)
+```
+
+```{r}
+length(m)
+sort(sizes(m))
+round(modularity(m),5)
+```
+
+```{r}
+membership(m)#który wiercholek w ktorej spolecznosci
+communities(m)#skład poszczegolnych spolecznosci
+V(graf_books)[membership(m)==1]$label
+V(graf_books)[membership(m)==2]$label
+V(graf_books)[membership(m)==3]$label
+```
+
+```{r}
+s <- cluster_fast_greedy(graf_books)
+plot_dendrogram(s)
+
+```
+
+##tabela społeczności
+
+```{r}
+s1 <- cluster_louvain(graf_books)
+dl1 <- length(s1) #liczba społeczności
+m1 <- round(modularity(s1),6)
+
+macierz1 <- matrix(c("Multilevel",dl1,m1),ncol=3,byrow = T)
+macierz1
+```
+
+```{r}
+s2 <- cluster_fast_greedy(graf_books)
+dl2 <- length(s2) #liczba społeczności
+m2 <- round(modularity(s2),6)
+
+macierz2 <- matrix(c("Fast greedy",dl2,m2),ncol=3,byrow = T)
+macierz2
+```
+
+```{r}
+s3 <- cluster_leading_eigen(graf_books)
+dl3 <- length(s3) #liczba społeczności
+m3 <- round(modularity(s3),6)
+
+macierz3 <- matrix(c("Leading eigen",dl3,m3),ncol=3,byrow = T)
+```
+
+```{r}
+s4 <- cluster_edge_betweenness(graf_books)
+dl4 <- length(s4) #liczba społeczności
+m4 <- round(modularity(s4),6)
+
+macierz4 <- matrix(c("Edge betweenness",dl4,m4),ncol=3,byrow = T)
+```
+
+```{r}
+s5 <- cluster_spinglass(graf_books)
+dl5 <- length(s5) #liczba społeczności
+m5 <- round(modularity(s5),6)
+
+macierz5 <- matrix(c("Spinglas",dl5,m5),ncol=3,byrow = T)
+```
+
+```{r}
+s6 <- cluster_infomap(graf_books)
+dl6 <- length(s6) #liczba społeczności
+m6 <- round(modularity(s6),6)
+
+macierz6 <- matrix(c("Infomap",dl6,m6),ncol=3,byrow = T)
+```
+
+```{r}
+s7 <- cluster_label_prop(graf_books)
+dl7 <- length(s7) #liczba społeczności
+m7 <- round(modularity(s7),6)
+
+macierz7 <- matrix(c("Label propagating",dl7,m7),ncol=3,byrow = T)
+```
+
+```{r}
+s8 <- cluster_walktrap(graf_books)
+dl8 <- length(s8) #liczba społeczności
+m8 <- round(modularity(s8),6)
+
+macierz8 <- matrix(c("Walking",dl8,m8),ncol=3,byrow = T)
+```
+
+```{r}
+Tabela <- rbind(macierz1,macierz2,macierz3,macierz4,macierz5,macierz6,macierz7,macierz8)
+```
